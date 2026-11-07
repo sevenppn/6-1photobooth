@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>6/1 Photobooth</title>
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="6/1 Photobooth">
+    <link rel="apple-touch-icon" href="https://img1.pic.in.th/images/6-1hub.png">
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f5f5f5;
+            
+            /* บล็อกคำสั่งนิ้วสัมผัสที่ทำให้เกิดการซูมในระดับ CSS */
+            touch-action: none; 
+            -webkit-user-select: none;
+            user-select: none;
+            
+            /* ป้องกันการเด้งหรือขยายหน้าจอเมื่อเลื่อนนิ้วเกินขอบ (Rubber-banding) */
+            position: fixed;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+            touch-action: none; 
+        }
+
+        /* 💡 ไม้ตาย: บล็อกไม่ให้เบราว์เซอร์ซูมหน้าจอเมื่อผู้ใช้กดจิ้มช่องพิมพ์ข้อความ (Input/Textarea) */
+        input, textarea, select {
+            font-size: 16px !important; /* iOS จะซูมอัตโนมัติถ้าขนาดฟอนต์เล็กกว่า 16px */
+        }
+
+        /* 🟢 สไตล์ปุ่มติดตั้ง "เพิ่มไปยังหน้าจอหลัก" (ลอยอยู่ด้านล่างสุดและอยู่เหนือ iframe) */
+        #installBtn {
+            display: none; /* เริ่มต้นจะซ่อนไว้ก่อน จะแสดงเมื่อเบราว์เซอร์พร้อมติดตั้ง */
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2563eb; /* สีน้ำเงินสวยงาม */
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 50px; /* ทรงมนสวยๆ */
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); /* ใส่เงาให้ดูมีมิติ */
+            z-index: 99999; /* มั่นใจว่าอยู่หน้าสุดเหนือ iframe แน่นอน */
+            transition: all 0.3s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        #installBtn:active {
+            transform: translateX(-50%) scale(0.95); /* เอฟเฟกต์ตอนกดปุ่มจะยุบลงนิดนึง */
+            background-color: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+
+    <iframe src="https://script.google.com/macros/s/AKfycbywoxkwURBYfARfwL9jMoe6ytwl5-D1bxxubWy00Tz4oIzmC9ju-NXq2zyR035NsCz-/exec" allowfullscreen></iframe>
+
+
+    <script>
+        // 1. ลงทะเบียน Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker ลงทะเบียนสำเร็จ!', reg))
+            .catch(err => console.log('Service Worker ผิดพลาด:', err));
+        }
+
+        /* ========================================================
+           ✨ ระบบดักจับคำสั่งติดตั้ง (Add to Home Screen)
+           ======================================================== */
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // บล็อกแถบแจ้งเตือนสุ่มๆ ของเบราว์เซอร์ไม่ให้ขึ้นกวนใจ
+            e.preventDefault();
+            // เก็บ Event ไว้เรียกใช้ตอนกดปุ่ม
+            deferredPrompt = e;
+            // เปิดให้ปุ่มติดตั้งแสดงผลขึ้นมาบนหน้าจอ
+            installBtn.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', () => {
+            if (!deferredPrompt) return;
+            
+            // ซ่อนปุ่มทันทีเพื่อป้องกันการกดซ้ำซ้อน
+            installBtn.style.display = 'none';
+            // เรียกป๊อปอัปติดตั้งของระบบขึ้นมา
+            deferredPrompt.prompt();
+            
+            // ตรวจสอบผลลัพธ์
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('ผู้ใช้ยอมรับการติดตั้ง 6/1 Photobooth');
+                } else {
+                    console.log('ผู้ใช้ยกเลิกการติดตั้ง');
+                    // ถ้าผู้ใช้ยกเลิก ให้โชว์ปุ่มใหม่อีกครั้งเผื่อเขาอยากกดวันหลัง
+                    installBtn.style.display = 'block';
+                }
+                deferredPrompt = null;
+            });
+        });
+
+        // ซ่อนปุ่มอัตโนมัติหากติดตั้งลงเครื่องเสร็จเรียบร้อยแล้ว
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+            deferredPrompt = null;
+            console.log('ติดตั้งแอปสำเร็จเรียบร้อย!');
+        });
+
+
+        /* ========================================================
+            🔥 สคริปต์บล็อกการซูมทุกกรณี (Anti-Zoom Ultimate Script)
+           ======================================================== */
+
+        // บล็อกการ Pinch to Zoom (กางนิ้วซูม) และ Double Tap (เคาะรัวเพื่อซูม)
+        document.addEventListener('touchstart', function (event) {
+            if (event.touches.length > 1) {
+                event.preventDefault(); // ห้ามใช้มากกว่า 1 นิ้ว
+            }
+        }, { passive: false });
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            let now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault(); // ห้ามดับเบิ้ลแท็บ
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // บล็อกการซูมด้วยปุ่มลัดบนคีย์บอร์ด (Ctrl + บวก/ลบ) และการใช้ Wheel เมาส์ (สำหรับเปิดบน PC)
+        document.addEventListener('keydown', function (event) {
+            if (event.ctrlKey && (event.key === '+' || event.key === '-' || event.key === '=' || event.key === '0')) {
+                event.preventDefault();
+            }
+        });
+
+        document.addEventListener('wheel', function (event) {
+            if (event.ctrlKey) {
+                event.preventDefault(); // ห้ามกด Ctrl แล้วหมุนลูกกลิ้งเมาส์เพื่อซูม
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
